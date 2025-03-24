@@ -87,6 +87,11 @@ main {
   margin-bottom: 1rem;
   object-fit: cover;
 }
+.qr{
+  width: 150px;
+  heigth: 150px;
+  border-radius: 20%;
+}
 
 footer {
   background-color: #333;
