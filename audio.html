@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Música em Canais Separados</title>
+    <script>
+        // FFmpeg.js embutido diretamente no código (versão compactada do script FFmpeg.js)
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js";
+        script.onload = () => {
+            const { createFFmpeg, fetchFile } = FFmpeg;
+            const ffmpeg = createFFmpeg({ log: true });
+
+            // Barra de progresso
+            const progressBar = document.getElementById('progressBar');
+            const progressLabel = document.getElementById('progressLabel');
+            
+            async function processAudio() {
+                // Atualiza o progresso para 0% ao começar o processo
+                progressBar.value = 0;
+                progressLabel.textContent = 'Carregando FFmpeg...';
+
+                // Carregar o FFmpeg
+                await ffmpeg.load();
+                progressBar.value = 50;  // Progresso após o carregamento do FFmpeg
+
+                // Atualiza a mensagem
+                progressLabel.textContent = 'Processando arquivos de áudio...';
+
+                const leftFile = document.getElementById("leftAudio").files[0];
+                const rightFile = document.getElementById("rightAudio").files[0];
+
+                if (!leftFile || !rightFile) {
+                    alert("Selecione dois arquivos de áudio!");
+                    return;
+                }
+
+                // Criando nomes de arquivos seguros para FFmpeg
+                const leftFileName = "left_audio.mp3";
+                const rightFileName = "right_audio.mp3";
+
+                // Carregar os arquivos no FFmpeg.js
+                ffmpeg.FS('writeFile', leftFileName, await fetchFile(leftFile));
+                ffmpeg.FS('writeFile', rightFileName, await fetchFile(rightFile));
+
+                // Comando para separar os canais e mixar
+                await ffmpeg.run(
+                    '-i', leftFileName, '-i', rightFileName,
+                    '-filter_complex',
+                    '[0:a]pan=stereo|c0=c0|c1=0[aLeft]; [1:a]pan=stereo|c0=0|c1=c0[aRight]; [aLeft][aRight]amix=inputs=2:duration=longest[aFinal]',
+                    '-map', '[aFinal]', 'output.mp3'
+                );
+
+                // Atualiza o progresso para 100% quando o processo terminar
+                progressBar.value = 100;
+                progressLabel.textContent = 'Processamento concluído!';
+
+                // Obter o arquivo processado
+                const outputData = ffmpeg.FS('readFile', 'output.mp3');
+                const audioBlob = new Blob([outputData.buffer], { type: 'audio/mp3' });
+                const url = URL.createObjectURL(audioBlob);
+
+                // Criar um link de download automático
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "musica_stereo.mp3";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+
+            // Expondo a função para o botão
+            window.processAudio = processAudio;
+        };
+        document.head.appendChild(script);
+    </script>
+</head>
+<body>
+    <h2>Escolha duas músicas</h2>
+    <input type="file" id="leftAudio" accept="audio/*">
+    <input type="file" id="rightAudio" accept="audio/*">
+    <button onclick="processAudio()">Gerar e Baixar</button>
+
+    <!-- Barra de carregamento -->
+    <div>
+        <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
+        <p id="progressLabel">Carregando FFmpeg...</p>
+    </div>
+</body>
+</html>
